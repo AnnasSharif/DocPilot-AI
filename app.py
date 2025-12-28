@@ -5,7 +5,6 @@ import re
 from collections import Counter
 from PyPDF2 import PdfReader
 from dotenv import load_dotenv
-from fpdf import FPDF
 
 
 load_dotenv()
@@ -28,9 +27,7 @@ Explanation Style:
 Do not add outside knowledge. Do not guess. Stay within the document content.
 """
 
-
 DOCUMENT_CHUNKS = []
-LAST_ANSWER = ""
 
 
 def extract_text_from_pdfs(files):
@@ -127,7 +124,6 @@ def process_pdfs(files):
 
 
 def chat_fn(message, history):
-    global LAST_ANSWER
     history = history or []
 
     history.append({"role": "user", "content": message})
@@ -137,7 +133,6 @@ def chat_fn(message, history):
     else:
         reply = ask_groq(message)
 
-    LAST_ANSWER = reply
     history.append({"role": "assistant", "content": reply})
     return history, ""
 
@@ -148,34 +143,19 @@ def clear_all():
     return [], "🧹 Cleared. Upload PDFs to start again."
 
 
-def download_answer():
-    if not LAST_ANSWER:
-        return None
-
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_font("Arial", size=12)
-
-    for line in LAST_ANSWER.split("\n"):
-        pdf.multi_cell(0, 8, line)
-
-    file_path = "DocPilotAI_Answer.pdf"
-    pdf.output(file_path)
-
-    return file_path
-
-
 with gr.Blocks() as demo:
 
     gr.Markdown("""
     # 📘 DocPilotAI – RAG PDF Chatbot
+
     **Ask questions directly from your own PDF documents.**
+
     ### ✨ Features
     • Multiple PDF upload  
     • Keyword-based document retrieval  
     • Groq-powered answers  
-    • Download answer as PDF  
+    • Clean and simple interface  
+
     ---
     """)
 
@@ -190,8 +170,6 @@ with gr.Blocks() as demo:
 
             send_btn = gr.Button("Send", variant="primary")
             clear_btn = gr.Button("Clear Chat")
-            download_btn = gr.Button("⬇️ Download Answer")
-            download_file = gr.File()
 
         with gr.Column(scale=1):
             pdf_upload = gr.File(
@@ -213,7 +191,6 @@ with gr.Blocks() as demo:
     send_btn.click(chat_fn, inputs=[user_msg, chatbot], outputs=[chatbot, user_msg])
     user_msg.submit(chat_fn, inputs=[user_msg, chatbot], outputs=[chatbot, user_msg])
     clear_btn.click(clear_all, outputs=[chatbot, status])
-    download_btn.click(download_answer, outputs=download_file)
 
 if __name__ == "__main__":
     demo.launch(theme=gr.themes.Soft(primary_hue="indigo"))
